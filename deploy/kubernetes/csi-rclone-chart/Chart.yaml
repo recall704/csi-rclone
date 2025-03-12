@@ -1,0 +1,13 @@
+apiVersion: v2
+appVersion: "3.0.0"
+description: A Helm chart for CSI Rclone plugin for Kubernetes
+keywords:
+- csi
+- rclone
+- storage
+maintainers:
+- email: tk657309822@gmail.com
+  name: recall704
+name: csi-rclone
+type: application
+version: 0.1.0

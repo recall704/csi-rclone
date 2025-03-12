@@ -1,0 +1,82 @@
+# This YAML file contains attacher & csi driver API objects that are necessary
+# to run external CSI attacher for rclone
+
+kind: StatefulSet
+apiVersion: apps/v1
+metadata:
+  name: csi-controller-rclone
+  namespace: {{ .Release.Namespace }}
+spec:
+  serviceName: "csi-controller-rclone"
+  replicas: {{ .Values.controller.replicas }}
+  selector:
+    matchLabels:
+      app: csi-controller-rclone
+  template:
+    metadata:
+      labels:
+        app: csi-controller-rclone
+    spec:
+      nodeSelector: {{ toYaml .Values.controller.nodeSelector | nindent 8 }}
+      tolerations: {{ toYaml .Values.controller.tolerations | nindent 8 }}
+      affinity: {{ toYaml .Values.controller.affinity | nindent 8 }}
+      serviceAccountName: csi-controller-rclone
+      containers:
+        # ------------------------------------------------------------------------------------------------------------------------------------
+        - name: csi-provisioner
+          image: {{ .Values.controller.csi_provisioner.image }}
+          args:
+            - "--csi-address=$(ADDRESS)"
+            - "--extra-create-metadata"
+            {{- if .Values.controller.leaderElection }}
+            - "--leader-election"
+            {{- end }}
+            - "--v=1"
+          env:
+            - name: ADDRESS
+              value: /plugin/csi.sock
+          imagePullPolicy: {{ .Values.controller.imagePullPolicy }}
+          resources: {{ toYaml .Values.controller.csi_provisioner.resources | nindent 12 }}
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /plugin
+        # ------------------------------------------------------------------------------------------------------------------------------------
+        - name: csi-attacher
+          image: {{ .Values.controller.csi_attacher.image }}
+          args:
+            - "--csi-address=$(ADDRESS)"
+            - "--v=1"
+            {{- if .Values.controller.leaderElection }}
+            - "--leader-election"
+            {{- end }}
+          env:
+            - name: ADDRESS
+              value: /plugin/csi.sock
+          imagePullPolicy: {{ .Values.controller.imagePullPolicy }}
+          resources: {{ toYaml .Values.controller.csi_attacher.resources | nindent 12 }}
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /plugin
+        # ------------------------------------------------------------------------------------------------------------------------------------
+        - name: rclone
+          image: {{ .Values.controller.rclone.image }}
+          args :
+            - "/bin/csi-rclone-plugin"
+            - "--nodeid=$(NODE_ID)"
+            - "--endpoint=$(CSI_ENDPOINT)"
+            - "--v=1"
+          env:
+            - name: NODE_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: CSI_ENDPOINT
+              value: unix://plugin/csi.sock
+          imagePullPolicy: {{ .Values.controller.imagePullPolicy }}
+          resources: {{ toYaml .Values.controller.rclone.resources | nindent 12 }}
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /plugin
+      volumes:
+        - name: socket-dir
+          emptyDir: {}

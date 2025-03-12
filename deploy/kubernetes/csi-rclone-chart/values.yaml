@@ -1,0 +1,84 @@
+
+## 控制器配置
+controller:
+  imagePullPolicy: "IfNotPresent"
+  replicas: 1
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  leaderElection: false
+  csi_provisioner:
+    # image: "registry.k8s.io/sig-storage/csi-provisioner:v5.0.2"
+    image: "registry.cn-shanghai.aliyuncs.com/tk-mirrors/csi-provisioner:v5.0.2"
+    resources: {}
+    # 例如：
+    # resources:
+    #   limits:
+    #     cpu: 100m
+    #     memory: 128Mi
+    #   requests:
+    #     cpu: 100m
+    #     memory: 128Mi
+  csi_attacher:
+    # image: "k8s.gcr.io/sig-storage/csi-attacher:v3.4.0"
+    image: "registry.cn-shanghai.aliyuncs.com/tk-mirrors/csi-attacher:v3.4.0"
+    resources: {}
+    # 例如：
+    # resources:
+    #   limits:
+    #     cpu: 100m
+    #     memory: 128Mi
+    #   requests:
+    #     cpu: 100m
+    #     memory: 128Mi
+  rclone:
+    # image: "win7/csi-rclone:v3.0.1"
+    image: "registry.cn-shanghai.aliyuncs.com/tk-mirrors/csi-rclone:v3.0.1"
+    resources: {}
+    # 例如：
+    # resources:
+    #   limits:
+    #     cpu: 100m
+    #     memory: 128Mi
+    #   requests:
+    #     cpu: 100m
+    #     memory: 128Mi
+
+
+# ---------------------------------------------------------------------------------------------------------------
+node_plugin:
+  imagePullPolicy: "IfNotPresent"
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  node_driver_registrar:
+    # image: "k8s.gcr.io/sig-storage/csi-node-driver-registrar:v2.4.0"
+    image: "registry.cn-shanghai.aliyuncs.com/tk-mirrors/csi-node-driver-registrar:v2.4.0"
+    resources: {}
+    # 例如：
+    # resources:
+    #   limits:
+    #     cpu: 100m
+    #     memory: 128Mi
+    #   requests:
+    #     cpu: 100m
+    #     memory: 128Mi
+  rclone:
+    # image: "wunderio/csi-rclone:v3.0.0"
+    # image: "win7/csi-rclone:v3.0.1"
+    image: "registry.cn-shanghai.aliyuncs.com/tk-mirrors/csi-rclone:v3.0.1"
+    resources: {}
+    # 例如：
+    # resources:
+    #   limits:
+    #     cpu: 100m
+    #     memory: 128Mi
+    #   requests:
+    #     cpu: 100m
+    #     memory: 128Mi
+
+
+storageClass:
+  create: true
+  name: csi-rclone
+  parameters: {}

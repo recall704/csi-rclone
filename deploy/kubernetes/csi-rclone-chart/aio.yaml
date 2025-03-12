@@ -1,0 +1,305 @@
+---
+# Source: csi-rclone/templates/controller-rbac.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: csi-controller-rclone
+  namespace: kube-system
+---
+# Source: csi-rclone/templates/nodeplugin-rbac.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: csi-nodeplugin-rclone
+  namespace: kube-system
+---
+# Source: csi-rclone/templates/storageclass.yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: csi-rclone
+provisioner: csi-rclone
+---
+# Source: csi-rclone/templates/controller-rbac.yaml
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: external-controller-rclone
+rules:
+  - apiGroups: [""]
+    resources: ["persistentvolumes"]
+    verbs: ["get", "list", "watch", "patch", "update", "create", "delete"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["csi.storage.k8s.io"]
+    resources: ["csinodeinfos"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["volumeattachments"]
+    verbs: ["get", "list", "watch", "update", "create", "delete"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["volumeattachments/status"]
+    verbs: ["patch"]
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "create", "update"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["list", "watch", "create", "update", "patch"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["storageclasses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources: ["volumesnapshots"]
+    verbs: ["get", "list"]
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources: ["volumesnapshotcontents"]
+    verbs: ["get", "list"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["csinodes"]
+    verbs: ["get", "list", "watch"]
+---
+# Source: csi-rclone/templates/nodeplugin-rbac.yaml
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: csi-nodeplugin-rclone
+rules:
+  - apiGroups: [""]
+    resources: ["persistentvolumes"]
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["volumeattachments"]
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+---
+# Source: csi-rclone/templates/controller-rbac.yaml
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: csi-attacher-role-rclone
+subjects:
+  - kind: ServiceAccount
+    name: csi-controller-rclone
+    namespace: kube-system
+roleRef:
+  kind: ClusterRole
+  name: external-controller-rclone
+  apiGroup: rbac.authorization.k8s.io
+---
+# Source: csi-rclone/templates/nodeplugin-rbac.yaml
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: csi-nodeplugin-rclone
+subjects:
+  - kind: ServiceAccount
+    name: csi-nodeplugin-rclone
+    namespace: kube-system
+roleRef:
+  kind: ClusterRole
+  name: csi-nodeplugin-rclone
+  apiGroup: rbac.authorization.k8s.io
+---
+# Source: csi-rclone/templates/csi-nodeplugin-ds.yaml
+# This YAML file contains driver-registrar & csi driver nodeplugin API objects
+# that are necessary to run CSI nodeplugin for rclone
+kind: DaemonSet
+apiVersion: apps/v1
+metadata:
+  name: csi-nodeplugin-rclone
+  namespace: kube-system
+spec:
+  selector:
+    matchLabels:
+      app: csi-nodeplugin-rclone
+  template:
+    metadata:
+      labels:
+        app: csi-nodeplugin-rclone
+    spec:
+      serviceAccountName: csi-nodeplugin-rclone
+      nodeSelector: 
+        {}
+      affinity: 
+        {}
+      tolerations: 
+        []
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      containers:
+        # ------------------------------------------------------------------------------------------------------------------------------------
+        - name: node-driver-registrar
+          image: registry.cn-shanghai.aliyuncs.com/tk-mirrors/csi-node-driver-registrar:v2.4.0
+          imagePullPolicy: IfNotPresent
+          resources: 
+            {}
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "rm -rf /registration/csi-rclone /registration/csi-rclone-reg.sock"]
+          args:
+            - --v=1
+            - --csi-address=/plugin/csi.sock
+            - --kubelet-registration-path=/var/lib/kubelet/plugins/csi-rclone/csi.sock
+          env:
+            - name: KUBE_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          volumeMounts:
+            - name: plugin-dir
+              mountPath: /plugin
+            - name: registration-dir
+              mountPath: /registration
+        # ------------------------------------------------------------------------------------------------------------------------------------
+        - name: rclone
+          image: registry.cn-shanghai.aliyuncs.com/tk-mirrors/csi-rclone:v3.0.1
+          imagePullPolicy: IfNotPresent
+          resources: 
+            {}
+          securityContext:
+            privileged: true
+            capabilities:
+              add: ["SYS_ADMIN"]
+            allowPrivilegeEscalation: true
+          args:
+            - "/bin/csi-rclone-plugin"
+            - "--nodeid=$(NODE_ID)"
+            - "--endpoint=$(CSI_ENDPOINT)"
+            - "--v=1"
+          env:
+            - name: NODE_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: CSI_ENDPOINT
+              value: unix://plugin/csi.sock
+          lifecycle:
+            postStart:
+              exec:
+                command: ["/bin/sh", "-c", "mount -t fuse.rclone | while read -r mount; do umount $(echo $mount | awk '{print $3}') || true ; done"]
+          volumeMounts:
+            - name: plugin-dir
+              mountPath: /plugin
+            - name: pods-mount-dir
+              mountPath: /var/lib/kubelet/pods
+              mountPropagation: "Bidirectional"
+      volumes:
+        - name: plugin-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins/csi-rclone
+            type: DirectoryOrCreate
+        - name: pods-mount-dir
+          hostPath:
+            path: /var/lib/kubelet/pods
+            type: Directory
+        - hostPath:
+            path: /var/lib/kubelet/plugins_registry
+            type: DirectoryOrCreate
+          name: registration-dir
+---
+# Source: csi-rclone/templates/csi-controller-sts.yaml
+# This YAML file contains attacher & csi driver API objects that are necessary
+# to run external CSI attacher for rclone
+
+kind: StatefulSet
+apiVersion: apps/v1
+metadata:
+  name: csi-controller-rclone
+  namespace: kube-system
+spec:
+  serviceName: "csi-controller-rclone"
+  replicas: 1
+  selector:
+    matchLabels:
+      app: csi-controller-rclone
+  template:
+    metadata:
+      labels:
+        app: csi-controller-rclone
+    spec:
+      nodeSelector: 
+        {}
+      tolerations: 
+        []
+      affinity: 
+        {}
+      serviceAccountName: csi-controller-rclone
+      containers:
+        # ------------------------------------------------------------------------------------------------------------------------------------
+        - name: csi-provisioner
+          image: registry.cn-shanghai.aliyuncs.com/tk-mirrors/csi-provisioner:v5.0.2
+          args:
+            - "--csi-address=$(ADDRESS)"
+            - "--extra-create-metadata"
+            - "--v=1"
+          env:
+            - name: ADDRESS
+              value: /plugin/csi.sock
+          imagePullPolicy: IfNotPresent
+          resources: 
+            {}
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /plugin
+        # ------------------------------------------------------------------------------------------------------------------------------------
+        - name: csi-attacher
+          image: registry.cn-shanghai.aliyuncs.com/tk-mirrors/csi-attacher:v3.4.0
+          args:
+            - "--csi-address=$(ADDRESS)"
+            - "--v=1"
+          env:
+            - name: ADDRESS
+              value: /plugin/csi.sock
+          imagePullPolicy: IfNotPresent
+          resources: 
+            {}
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /plugin
+        # ------------------------------------------------------------------------------------------------------------------------------------
+        - name: rclone
+          image: registry.cn-shanghai.aliyuncs.com/tk-mirrors/csi-rclone:v3.0.1
+          args :
+            - "/bin/csi-rclone-plugin"
+            - "--nodeid=$(NODE_ID)"
+            - "--endpoint=$(CSI_ENDPOINT)"
+            - "--v=1"
+          env:
+            - name: NODE_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: CSI_ENDPOINT
+              value: unix://plugin/csi.sock
+          imagePullPolicy: IfNotPresent
+          resources: 
+            {}
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /plugin
+      volumes:
+        - name: socket-dir
+          emptyDir: {}
+---
+# Source: csi-rclone/templates/csi-driver.yaml
+apiVersion: storage.k8s.io/v1
+kind: CSIDriver
+metadata:
+  name: csi-rclone
+spec:
+  attachRequired: true
+  podInfoOnMount: true
