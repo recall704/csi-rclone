@@ -28,14 +28,8 @@ import (
 	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
 )
 
-const (
-	// DefaultCacheDirPrefix is the default prefix for rclone cache directories
-	DefaultCacheDirPrefix = "/tmp/rclone-vfs-cache/"
-)
-
 type mountContext struct {
-	rcPort       int
-	cacheDirPath string
+	rcPort int
 }
 
 type nodeServer struct {
@@ -133,17 +127,9 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
-	// Get cache directory path
-	cacheDirPrefix := DefaultCacheDirPrefix
-	if prefix, ok := flags["cache-dir-prefix"]; ok {
-		cacheDirPrefix = prefix
-	}
-	cacheDirPath := cacheDirPrefix + targetPath
-
 	// Save the mount context
 	ns.setMountContext(targetPath, &mountContext{
-		rcPort:       rcPort,
-		cacheDirPath: cacheDirPath,
+		rcPort: rcPort,
 	})
 
 	return &csi.NodePublishVolumeResponse{}, nil
@@ -296,13 +282,8 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 			break
 		}
 
-		// Remove VFS cache using the cached path
-		if mountContext.cacheDirPath != "" {
-			os.RemoveAll(mountContext.cacheDirPath)
-		} else {
-			// Fallback to default path for backward compatibility
-			os.RemoveAll(DefaultCacheDirPrefix + targetPath)
-		}
+		// Remove VFS cache
+		os.RemoveAll("/tmp/rclone-vfs-cache/" + targetPath)
 	}
 
 	// Remove mount context
@@ -411,14 +392,7 @@ func Mount(remote string, remotePath string, targetPath string, configData strin
 	defaultFlags["cache-chunk-clean-interval"] = "15m"
 	defaultFlags["dir-cache-time"] = "5s"
 	defaultFlags["vfs-cache-mode"] = "writes"
-	// 使用 flags 中的 cache-dir-prefix 变量，如果不存在则使用默认值
-	cacheDirPrefix := DefaultCacheDirPrefix
-	if prefix, ok := flags["cache-dir-prefix"]; ok {
-		cacheDirPrefix = prefix
-		// 从 flags 中删除 cache-dir-prefix，因为它不是 rclone 的标准选项
-		delete(flags, "cache-dir-prefix")
-	}
-	defaultFlags["cache-dir"] = cacheDirPrefix + targetPath
+	defaultFlags["cache-dir"] = "/tmp/rclone-vfs-cache/" + targetPath
 	defaultFlags["allow-non-empty"] = "true"
 	defaultFlags["allow-other"] = "true"
 
