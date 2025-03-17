@@ -166,7 +166,7 @@ spec:
               mountPath: /registration
         # ------------------------------------------------------------------------------------------------------------------------------------
         - name: rclone
-          image: registry.cn-shanghai.aliyuncs.com/tk-mirrors/csi-rclone:v3.0.1
+          image: registry.cn-shanghai.aliyuncs.com/tk-mirrors/wunderio-csi-rclone:v3.0.0
           imagePullPolicy: IfNotPresent
           resources: 
             {}
@@ -272,7 +272,7 @@ spec:
               mountPath: /plugin
         # ------------------------------------------------------------------------------------------------------------------------------------
         - name: rclone
-          image: registry.cn-shanghai.aliyuncs.com/tk-mirrors/csi-rclone:v3.0.1
+          image: registry.cn-shanghai.aliyuncs.com/tk-mirrors/wunderio-csi-rclone:v3.0.0
           args :
             - "/bin/csi-rclone-plugin"
             - "--nodeid=$(NODE_ID)"

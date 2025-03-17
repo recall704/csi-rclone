@@ -32,8 +32,8 @@ controller:
     #     cpu: 100m
     #     memory: 128Mi
   rclone:
-    # image: "win7/csi-rclone:v3.0.1"
-    image: "registry.cn-shanghai.aliyuncs.com/tk-mirrors/csi-rclone:v3.0.1"
+    # image: "wunderio/csi-rclone:v3.0.0"
+    image: "registry.cn-shanghai.aliyuncs.com/tk-mirrors/wunderio-csi-rclone:v3.0.0"
     resources: {}
     # 例如：
     # resources:
@@ -65,8 +65,7 @@ node_plugin:
     #     memory: 128Mi
   rclone:
     # image: "wunderio/csi-rclone:v3.0.0"
-    # image: "win7/csi-rclone:v3.0.1"
-    image: "registry.cn-shanghai.aliyuncs.com/tk-mirrors/csi-rclone:v3.0.1"
+    image: "registry.cn-shanghai.aliyuncs.com/tk-mirrors/wunderio-csi-rclone:v3.0.0"
     resources: {}
     # 例如：
     # resources:
